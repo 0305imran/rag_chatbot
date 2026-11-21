@@ -23,6 +23,14 @@ LLM_MODEL = os.getenv("LLM_MODEL", "qwen/qwen3.8-27b")
 LLM_TEMPERATURE = 0                                           # FR-12
 LLM_REASONING_EFFORT = "none"                                 # FR-13
 
+HISTORY_MAX_EXCHANGES = 5     # agent PRD FR-50: recent user/assistant exchanges passed as context
+
+# ---- Refund agent (agent PRD) ----
+DEMO_USER_ID = "user_123"     # FR-15/16: stands in for the authenticated session's user
+REFUND_APPROVAL_LIMIT = 499   # FR-36/37: refunds above this go to the Support Team
+REFUND_WINDOW_DAYS = 7        # FR-25
+AGENT_MAX_STEPS = 4           # cap on LLM tool-calling rounds per refund turn
+
 TOP_K = 3                     # FR-07: top-3 per collection
 GUIDE_CHUNK_SIZE = 600        # FR-16
 GUIDE_CHUNK_OVERLAP = 100     # FR-16
