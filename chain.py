@@ -5,7 +5,8 @@ from typing import Iterator
 
 from langchain_core.documents import Document
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.messages import BaseMessage
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 from config import LLM_MODEL, LLM_REASONING_EFFORT, LLM_TEMPERATURE
 from retriever import build_retriever, flatten, format_context
@@ -28,6 +29,8 @@ things the customer can try or ask support about, not as facts about this custom
 - You have no access to the customer's account, balance, bill, or usage. If they ask for \
 personal account data, explain you can't see it and tell them where to find it if the \
 context says so.
+- Earlier conversation messages may be included. Use them only to understand what the \
+customer is referring to (for example "that" or "it"); facts must still come from the context.
 - Prefer short numbered steps for troubleshooting.
 - If the context does not contain enough information to answer, reply exactly:
 "{fallback}"
@@ -38,11 +41,13 @@ Context:
 
 def build_prompt() -> ChatPromptTemplate:
     return ChatPromptTemplate.from_messages(
-        [("system", SYSTEM_PROMPT), ("human", "{question}")]
+        [("system", SYSTEM_PROMPT),
+         MessagesPlaceholder("history", optional=True),   # agent PRD FR-46/47
+         ("human", "{question}")]
     ).partial(fallback=FALLBACK_MESSAGE)
 
 
-def build_llm():
+def build_llm(streaming: bool = True):
     from langchain_groq import ChatGroq
 
     if not os.getenv("GROQ_API_KEY"):
@@ -54,7 +59,7 @@ def build_llm():
         model=LLM_MODEL,
         temperature=LLM_TEMPERATURE,
         reasoning_effort=LLM_REASONING_EFFORT,
-        streaming=True,
+        streaming=streaming,
     )
 
 
@@ -73,9 +78,9 @@ class TelecomRAG:
     def retrieve(self, question: str) -> dict[str, list[Document]]:
         return self.retriever.invoke(question)
 
-    def ask(self, question: str) -> RAGResponse:
-        results = self.retrieve(question)
+    def ask(self, question: str, history: list[BaseMessage] | None = None) -> RAGResponse:
+        results = self.retrieve(question)   # FR-49: retrieval query is the raw question only
         stream = self.answer_chain.stream(
-            {"question": question, "context": format_context(results)}
+            {"question": question, "context": format_context(results), "history": history or []}
         )
         return RAGResponse(sources=flatten(results), stream=stream)
